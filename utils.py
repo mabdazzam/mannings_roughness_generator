@@ -8,16 +8,16 @@ import processing
 import requests
 from qgis.core import (
     Qgis,
-    QgsRasterLayer
     QgsApplication,
+    QgsRasterLayer,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
+    QgsProcessingUtils,
     QgsCoordinateTransformContext,
     QgsDistanceArea,
     QgsGeometry,
     QgsProcessing,
-    QgsProcessingException,
-    QgsProject,
+    QgsProcessingException,    
     QgsVectorLayer,
 )
 from qgis.PyQt.QtWidgets import QPushButton
@@ -47,7 +47,7 @@ def loadMessageFromCache(cache_path):
 
 def apply_style(layer_path, style_path, context):
     """Apply QGIS layer style (.qml)"""
-    layer = QgsRasterLayer(layer_path, "Manning Roughness Layer", "gdal")  # Explicitly load raster
+    layer = QgsRasterLayer(layer_path, "Manning Roughness Layer", "gdal")  # Load raster explicitly
     if layer.isValid() and style_path and os.path.exists(style_path):
         layer.loadNamedStyle(style_path)
         layer.triggerRepaint()
