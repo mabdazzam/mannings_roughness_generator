@@ -1,4 +1,4 @@
-### Manning Roughness Generator
+# Manning's Roughness Generator
 ## Overview
 
 Manning Roughness Generator is a QGIS plugin designed to compute Manning's roughness coefficients from land cover datasets, particularly ESA WorldCover data. This tool is useful for hydrological and hydraulic modeling applications.
