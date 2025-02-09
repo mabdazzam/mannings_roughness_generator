@@ -1,10 +1,19 @@
 from qgis.core import QgsProcessingProvider, QgsApplication
 from qgis.PyQt.QtGui import QIcon
+
 import os
+import inspect
+import sys
+
+
+
 from .manning_roughness_algorithm import ManningRoughnessAlgorithm
 
 class ManningRoughnessProvider(QgsProcessingProvider):
     def __init__(self):
+        """
+        Default constructor.
+        """
         super().__init__()
 
     def loadAlgorithms(self):
@@ -23,7 +32,7 @@ class ManningRoughnessProvider(QgsProcessingProvider):
 
     def initGui(self):
         """Initialize GUI elements if necessary"""
-        pass  # ✅ Ensures QGIS doesn't fail due to missing GUI setup
+        pass  # makes sure  QGIS doesn't fail due to missing GUI setup
 
     def unload(self):
         """Unload provider from QGIS Processing framework"""

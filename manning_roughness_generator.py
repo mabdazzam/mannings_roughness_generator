@@ -1,6 +1,12 @@
+# -*- coding: utf-8 -*-
+
+
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsProcessingProvider
+
+
+
 from .manning_roughness_algorithm import ManningRoughnessAlgorithm
 
 class ManningRoughnessProvider(QgsProcessingProvider):

@@ -3,8 +3,10 @@ import processing
 import pandas as pd
 from qgis.core import (
     QgsProcessing,
-    QgsApplication,
     QgsProcessingException,
+    QgsVectorLayer,
+    QgsProcessingParameterBoolean,
+    QgsVectorFileWriter,
     QgsProcessingUtils,
     QgsProcessingAlgorithm,
     QgsProcessingMultiStepFeedback,
@@ -48,6 +50,16 @@ class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(param)
 
         self.addParameter(
+                QgsProcessingParameterRasterDestination(
+                    "EsaWorldcoverAOI",
+                    "ESA WorldCover for AOI",
+                    optional=True,
+                    createByDefault=False,
+                    defaultValue=None,
+            )
+        )
+
+        self.addParameter(
             QgsProcessingParameterRasterDestination(
                 "ManningRoughness",
                 "Manning Roughness Coefficient",
@@ -86,13 +98,22 @@ class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
 
 class ManningRoughnessCalculator:
     def __init__(self, parameters, context, feedback):
+        """Initialize Manning Roughness Calculator"""
         self.parameters = parameters
         self.context = context
         self.feedback = feedback
-        self.outputs = {}
-        self.results = {}
+        self.outputs = {}  # Store intermediate and final outputs
+        self.results = {}  # Store additional processing results
         self.lookup_folder = os.path.join(os.path.dirname(__file__), "lookups")
-        self.landcover_vrt = os.path.join(os.path.dirname(__file__), "esa_worldcover_2021.vrt")
+        
+        # Define ESA WorldCover VRT path
+        self.esa_worldcover_2021_vrt = os.path.join(os.path.dirname(__file__), "esa_worldcover_2021.vrt")
+
+        # Verify the ESA WorldCover VRT file exists before using it
+        if not os.path.exists(self.esa_worldcover_2021_vrt):
+            raise QgsProcessingException(f"Missing ESA WorldCover VRT file: {self.esa_worldcover_2021_vrt}")
+
+        self.feedback.pushInfo(f"ESA WorldCover VRT found at: {self.esa_worldcover_2021_vrt}")
 
     def run(self):
         """Main processing logic for Manning Roughness calculation"""
@@ -101,45 +122,92 @@ class ManningRoughnessCalculator:
             return {}
 
         # Step 1: Extract AOI extent
+        self.feedback.pushInfo("Extracting AOI extent...")
         aoi_layer = QgsProcessingUtils.mapLayerFromString(self.parameters["aoi"], self.context)
         if aoi_layer is None:
             raise QgsProcessingException("Invalid Area of Interest (AOI) layer")
 
         extent = aoi_layer.extent()
         print(f"AOI extent: {extent}")
+        self.feedback.pushInfo(f"AOI extent extracted: {extent.toString()}")
 
-        # Step 2: Clip ESA Land Cover Raster to AOI
-        clipped_landcover = clipRasterByExtent(
-            self.landcover_vrt, extent, self.parameters["ManningRoughness"], self.context, self.feedback
-        )
-        
+        # Step 2: Generate ESA WorldCover for AOI only if output is requested
+        if self.parameters.get("EsaWorldcoverAOI"):
+            self.feedback.pushInfo("Generating ESA WorldCover raster for AOI...")
+
+            # Clip the ESA WorldCover VRT based on the AOI extent
+            clipped_esa_worldcover_2021 = clipRasterByExtent(
+                self.esa_worldcover_2021_vrt, extent, self.parameters["EsaWorldcoverAOI"], self.context, self.feedback
+            )
+
+            if not clipped_esa_worldcover_2021:
+                self.feedback.reportError("Failed to generate ESA WorldCover raster for AOI.")
+                raise QgsProcessingException("Failed to generate ESA WorldCover raster for AOI.")
+
+            self.outputs["clipped_esa_worldcover_2021"] = clipped_esa_worldcover_2021
+            self.feedback.pushInfo(f"ESA WorldCover raster saved at: {clipped_esa_worldcover_2021}")
+
+        else:
+            # If no raster is requested, handle it gracefully
+            self.feedback.pushInfo("Skipping ESA WorldCover raster generation as no output is requested.")
+            self.outputs["clipped_esa_worldcover_2021"] = None
+
+
+
         # Step 3: Select the correct lookup file based on ROUGHNESS_CLASS
         roughness_lookup = ["low_n.csv", "med_n.csv", "high_n.csv"]
         selected_lookup = roughness_lookup[self.parameters["ROUGHNESS_CLASS"]]
         lookup_file = os.path.join(self.lookup_folder, selected_lookup)
+
+        #lookup_layer = QgsVectorLayer(lookup_file, "ManningRoughnessLookup", "ogr")
+        #if not lookup_layer.isValid():
+        #    raise QgsProcessingException("Failed to load Manning Roughness lookup table")
+
+        # Load lookup table as a QGIS vector layer using 'delimitedtext' if it's a CSV
+        lookup_uri = f"file://{lookup_file}?delimiter=,"
+        lookup_layer = QgsVectorLayer(lookup_uri, "ManningRoughnessLookup", "delimitedtext")
+
+        if not lookup_layer.isValid():
+            raise QgsProcessingException(f"Failed to load Manning Roughness lookup table: {lookup_file}")
+
+
+        if not self.outputs.get("clipped_esa_worldcover_2021"):
+            raise QgsProcessingException("ESA WorldCover raster is missing. Ensure clipping was executed successfully.")
         
-        lookup_df = pd.read_csv(lookup_file)
-        lookup_dict = dict(zip(lookup_df["lc"], lookup_df["n"]))
+        alg_params = {
+                "DISCARD_NONMATCHING": False,
+                "FIELD": "raster_value",
+                "FIELDS_TO_COPY": ["n"],
+                "FIELD_2": "lc",
+                "INPUT": self.outputs["clipped_esa_worldcover_2021"],  # Use the correct reference
+                "INPUT_2": lookup_layer,
+                "METHOD": 1,
+                "PREFIX": "",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+                }
 
-        exprs = " + ".join([f"(A=={lc})*{n}" for lc, n in lookup_dict.items()])
+        
+        # Step 4: Generate the raster math expression for Manning roughness
+        exprs = " + ".join([f"(A == {feature['lc']}) * {feature['n']}" for feature in lookup_layer.getFeatures()])
 
-        # Step 4: Apply raster calculation to generate Manning roughness raster
-        input_dict = {"input_a": clipped_landcover, "band_a": 1}
-        roughness_raster = perform_raster_math(
-            exprs, input_dict, self.context, self.feedback, no_data=-9999, out_data_type=5,
-            output=self.parameters["ManningRoughness"]
-        )
+        # Apply raster calculation using the generated expression
+        input_dict = {"input_a": clipped_esa_worldcover_2021, "band_a": 1}
+        manning_roughness = perform_raster_math(
+                exprs, input_dict, self.context, self.feedback, no_data=-9999, out_data_type=5,
+                output=self.parameters["ManningRoughness"]
+                )
 
+        
         # Step 5: Polygonize (optional)
         if self.parameters.get("ManningRoughnessVector"):
             self.outputs["ManningRoughnessVector"] = gdalPolygonize(
-                roughness_raster, "roughness", self.parameters["ManningRoughnessVector"], self.context, self.feedback
+                manning_roughness, "roughness", self.parameters["ManningRoughnessVector"], self.context, self.feedback
             )
             apply_style(self.outputs["ManningRoughnessVector"], "manning_roughness_vector.qml", self.context)
             self.results["ManningRoughnessVector"] = self.outputs["ManningRoughnessVector"]
 
         # Step 6: Apply style and return results
-        apply_style(roughness_raster, "manning_roughness_raster.qml", self.context)
-        self.results["ManningRoughness"] = roughness_raster
+        apply_style(manning_roughness, "manning_roughness_raster.qml", self.context)
+        self.results["ManningRoughness"] = manning_roughness
 
         return self.results

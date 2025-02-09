@@ -67,16 +67,23 @@ def clipRasterByExtent(input_raster, extent, output_path, context, feedback):
     }
     return processing.run("gdal:cliprasterbyextent", clip_params, context=context, feedback=feedback)["OUTPUT"]
 
-def generate_manning_exprs(lookup_table_path, nodata=-9999):
-    """Generate raster math expression for Manning roughness"""
-    exprs = []
-    with open(lookup_table_path, "r") as f:
-        reader = csv.reader(f)
-        next(reader)  # Skip header
-        for row in reader:
-            land_cover_code, roughness = row
-            exprs.append(f"(A == {land_cover_code}) * {roughness}")
-    return f" + ".join(exprs) if exprs else str(nodata)
+#def generate_manning_exprs(lookup_table_path, nodata=-9999):
+#    """Generate raster math expression for Manning roughness"""
+#    exprs = []
+#    with open(lookup_table_path, "r") as f:
+#        reader = csv.reader(f)
+#        next(reader)  # Skip header
+#        for row in reader:
+#            land_cover_code, roughness = row
+#            exprs.append(f"(A == {land_cover_code}) * {roughness}")
+#    return f" + ".join(exprs) if exprs else str(nodata)
+
+def load_manning_lookup(lookup_table_path):
+    """Load Manning Roughness lookup table as a QGIS vector layer"""
+    lookup_layer = QgsVectorLayer(lookup_table_path, "ManningRoughnessLookup", "ogr")
+    if not lookup_layer.isValid():
+        raise QgsProcessingException("Failed to load Manning Roughness lookup table")
+    return lookup_layer
 
 def perform_raster_math(exprs, input_dict, context, feedback, no_data, out_data_type, output=QgsProcessing.TEMPORARY_OUTPUT):
     alg_params = {
