@@ -35,6 +35,10 @@ from qgis.core import (
     QgsVectorLayer,
     QgsProcessingParameterBoolean,
     QgsVectorFileWriter,
+    QgsProcessingOutputLayerDefinition,
+    QgsProject,
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
     QgsProcessingUtils,
     QgsProcessingAlgorithm,
     QgsProcessingMultiStepFeedback,
@@ -52,12 +56,33 @@ from .utils import (
     apply_style,
 )
 
+
+from .manning_roughness_calculator import ManningRoughnessCalculator
+
 class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
     """QGIS Processing Algorithm for Manning Roughness"""
 
+    def name(self):
+        return "manningroughness"
+
+    def displayName(self):
+        return "Manning Roughness Generator"  
+
+    def shortHelpString(self):
+        return QCoreApplication.translate(
+            "Processing",
+            "Generates Manning roughness raster from ESA WorldCover data, "
+            "allowing for classification based on predefined roughness lookup tables."
+        )
+
+    def createInstance(self):
+        return ManningRoughnessAlgorithm()
+
     def initAlgorithm(self, config=None):
         self.roughness_classes = ["Low", "Medium", "High"]
+        self.lc_pixel_size = 0.000083333333333 
 
+        # Step 1: Add AOI parameter
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 "aoi",
@@ -67,6 +92,7 @@ class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
+        # Step 2: Add Roughness Class Selection
         param = QgsProcessingParameterEnum(
             "ROUGHNESS_CLASS",
             "Roughness Class",
@@ -77,165 +103,225 @@ class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
 
-        self.addParameter(
-                QgsProcessingParameterRasterDestination(
-                    "EsaWorldcoverAOI",
-                    "ESA WorldCover for AOI",
-                    optional=True,
-                    createByDefault=False,
-                    defaultValue=None,
-            )
-        )
-
+        # Step 3: Add ESA WorldCover Output (Optional)
         self.addParameter(
             QgsProcessingParameterRasterDestination(
-                "ManningRoughness",
-                "Manning Roughness Coefficient",
-                optional=True,
-                createByDefault=True,
-                defaultValue=None,
-            )
-        )
-
-        self.addParameter(
-            QgsProcessingParameterVectorDestination(
-                "ManningRoughnessVector",
-                "Manning Roughness (Vectorized)",
+                "EsaWorldcoverAOI",
+                "ESA WorldCover 2021",
                 optional=True,
                 createByDefault=False,
                 defaultValue=None,
             )
         )
 
+        # Step 4: Add Manning Roughness Output
+        self.addParameter(
+            QgsProcessingParameterRasterDestination(
+                "ManningRoughness",
+                "Manning's Roughness (Raster)",
+                optional=True,
+                createByDefault=True,
+                defaultValue=None,
+            )
+        )
+
+        # Step 5: Add Manning Roughness Vector Output (Optional)
+        self.addParameter(
+            QgsProcessingParameterVectorDestination(
+                "ManningRoughnessVector",
+                "Manning's Roughness (Vector)",
+                optional=True,
+                createByDefault=False,
+                defaultValue=None,
+            )
+        )
+
+
+#    def processAlgorithm(self, parameters, context, model_feedback):
+#        feedback = QgsProcessingMultiStepFeedback(3, model_feedback)
+#
+#        # Step 1: Extract AOI extent
+#        aoi_layer = QgsProcessingUtils.mapLayerFromString(parameters["aoi"], context)
+#        if aoi_layer is None:
+#            raise QgsProcessingException("Invalid AOI layer.")
+#
+#        extent = aoi_layer.extent()
+#        feedback.pushInfo(f"AOI extent extracted: {extent.toString()}")
+#
+#        # Step 2: Ensure extent_esa is always assigned, avoiding UnboundLocalError
+#        extent_esa = None  
+#
+#        # Extract AOI CRS
+#        source_crs = aoi_layer.crs()
+#        target_crs = QgsCoordinateReferenceSystem("EPSG:4326")
+#        if source_crs.authid() != "EPSG:4326":
+#            transform = QgsCoordinateTransform(source_crs, target_crs, QgsProject.instance())
+#            reprojected_extent = transform.transformBoundingBox(extent)
+#            feedback.pushInfo(f"AOI reprojected to EPSG:4326: {reprojected_extent.toString()}")
+#        else:
+#            reprojected_extent = extent  # Already in EPSG:4326
+#
+#            # Assign `extent_esa` after reprojection to avoid unbound errors
+#            extent_esa = (
+#                    reprojected_extent.xMinimum() - 2 * self.lc_pixel_size,
+#                    reprojected_extent.yMinimum() - 2 * self.lc_pixel_size,
+#                    reprojected_extent.xMaximum() + 2 * self.lc_pixel_size,
+#                    reprojected_extent.yMaximum() + 2 * self.lc_pixel_size,
+#                    )
+#
+#            # Debugging: Ensure `extent_esa` is assigned before using it
+#            feedback.pushInfo(f"Buffered ESA extent: {extent_esa}")
+#
+#            # Check if extent_esa was correctly assigne
+#            if extent_esa is None:
+#                raise QgsProcessingException("Error: extent_esa was not assigned before usage.")
+#
+#
+#        # Step 4: Process ESA WorldCover Raster
+#
+#        esa_output = parameters.get("EsaWorldcoverAOI", QgsProcessing.TEMPORARY_OUTPUT)
+#
+#        gdal_output = processing.run(
+#                "gdal:cliprasterbyextent",
+#                {
+#                    "INPUT": os.path.join(os.path.dirname(__file__), "esa_worldcover_2021.vrt"),
+#                    "PROJWIN": f"{extent_esa[0]},{extent_esa[2]},{extent_esa[1]},{extent_esa[3]} [EPSG:4326]",
+#                    "OUTPUT": esa_output
+#                    },
+#                context=context, feedback=feedback,
+#                is_child_algorithm=True
+#                )
+#
+#        if "OUTPUT" not in gdal_output or not os.path.exists(gdal_output["OUTPUT"]):
+#            raise QgsProcessingException(f"ESA raster processing failed. GDAL Output: {gdal_output}")
+#        
+#        esa_raster = gdal_output["OUTPUT"]
+#        feedback.pushInfo(f"ESA WorldCover raster processed at: {esa_raster}")
+#
+#        # Ensure the function returns a dictionary, as required by QGIS
+#        return {
+#                "EsaWorldcoverAOI": esa_raster  # Always return the ESA raster path
+#                }
+
+
     def processAlgorithm(self, parameters, context, model_feedback):
         feedback = QgsProcessingMultiStepFeedback(3, model_feedback)
-        calculator = ManningRoughnessCalculator(parameters, context, feedback)
-        return calculator.run()
 
-    def name(self):
-        return "manningroughness"
+        # Step 1: Load AOI layer
+        aoi_layer = QgsProcessingUtils.mapLayerFromString(parameters["aoi"], context)
+        if aoi_layer is None or not isinstance(aoi_layer, QgsVectorLayer):
+            raise QgsProcessingException("Invalid AOI vector layer.")
 
-    def displayName(self):
-        return QCoreApplication.translate("Processing", "Manning Roughness Generator")
+        feedback.pushInfo(f"AOI original CRS: {aoi_layer.crs().authid()}")
 
-    def shortHelpString(self):
-        return QCoreApplication.translate("Processing", "Generates Manning roughness raster from ESA WorldCover data.")
+        # Step 2: Always reproject AOI to EPSG:4326
+        target_crs = QgsCoordinateReferenceSystem("EPSG:4326")
+        transformed_layer = processing.run(
+                "native:reprojectlayer",
+                {
+                    "INPUT": aoi_layer,
+                    "TARGET_CRS": target_crs,
+                    "OUTPUT": "memory:"  # Keep the result in memory
+                    },
+                context=context,
+                feedback=feedback
+                )["OUTPUT"]
 
-    def createInstance(self):
-        return ManningRoughnessAlgorithm()
+        if transformed_layer is None:
+            raise QgsProcessingException("Failed to reproject AOI to EPSG:4326.")
 
-class ManningRoughnessCalculator:
-    def __init__(self, parameters, context, feedback):
-        """Initialize Manning Roughness Calculator"""
-        self.parameters = parameters
-        self.context = context
-        self.feedback = feedback
-        self.outputs = {}  # Store intermediate and final outputs
-        self.results = {}  # Store additional processing results
-        self.lookup_folder = os.path.join(os.path.dirname(__file__), "lookups")
+        #Extract extent from the reprojected layer
+        reprojected_extent = transformed_layer.extent()
+        feedback.pushInfo(f"AOI reprojected extent (EPSG:4326): {reprojected_extent.toString()}")
+
+        # Assign `extent_esa` after reprojection
+        if not hasattr(self, "lc_pixel_size") or self.lc_pixel_size is None:
+            raise QgsProcessingException("lc_pixel_size is not defined!")
+
+        extent_esa = (
+                reprojected_extent.xMinimum() - 2 * self.lc_pixel_size,
+                reprojected_extent.yMinimum() - 2 * self.lc_pixel_size,
+                reprojected_extent.xMaximum() + 2 * self.lc_pixel_size,
+                reprojected_extent.yMaximum() + 2 * self.lc_pixel_size,
+                )
+        feedback.pushInfo(f"Buffered ESA extent: {extent_esa}")
         
-        # Define ESA WorldCover VRT path
-        self.esa_worldcover_2021_vrt = os.path.join(os.path.dirname(__file__), "esa_worldcover_2021.vrt")
+        # Step 3: Process ESA WorldCover Raster
+        esa_output = parameters.get("EsaWorldcoverAOI", QgsProcessing.TEMPORARY_OUTPUT)
 
-        # Verify the ESA WorldCover VRT file exists before using it
-        if not os.path.exists(self.esa_worldcover_2021_vrt):
-            raise QgsProcessingException(f"Missing ESA WorldCover VRT file: {self.esa_worldcover_2021_vrt}")
+        gdal_output = processing.run(
+                "gdal:cliprasterbyextent",
+                {
+                    "INPUT": os.path.join(os.path.dirname(__file__), "esa_worldcover_2021.vrt"),
+                    "PROJWIN": f"{extent_esa[0]},{extent_esa[2]},{extent_esa[1]},{extent_esa[3]} [EPSG:4326]",
+                    "OUTPUT": esa_output,
+                    },
+                context=context, feedback=feedback,
+                is_child_algorithm=True
+                )
 
-        self.feedback.pushInfo(f"ESA WorldCover VRT found at: {self.esa_worldcover_2021_vrt}")
+        if "OUTPUT" not in gdal_output or not os.path.exists(gdal_output["OUTPUT"]):
+            raise QgsProcessingException(f"ESA raster processing failed. GDAL Output: {gdal_output}")
 
-    def run(self):
-        """Main processing logic for Manning Roughness calculation"""
-        self.feedback.setCurrentStep(1)
-        if self.feedback.isCanceled():
-            return {}
+        esa_raster = gdal_output["OUTPUT"]
+        feedback.pushInfo(f"ESA WorldCover raster processed at: {esa_raster}")
 
-        # Step 1: Extract AOI extent
-        self.feedback.pushInfo("Extracting AOI extent...")
-        aoi_layer = QgsProcessingUtils.mapLayerFromString(self.parameters["aoi"], self.context)
-        if aoi_layer is None:
-            raise QgsProcessingException("Invalid Area of Interest (AOI) layer")
+        # Step 4: Process Manning Roughness Calculation
+        feedback.pushInfo("Starting Manning Roughness calculation...")
+        results = self.processManningRoughness(esa_raster, parameters, context, feedback)
 
-        extent = aoi_layer.extent()
-        print(f"AOI extent: {extent}")
-        self.feedback.pushInfo(f"AOI extent extracted: {extent.toString()}")
-
-        # Step 2: Generate ESA WorldCover for AOI only if output is requested
-        if self.parameters.get("EsaWorldcoverAOI"):
-            self.feedback.pushInfo("Generating ESA WorldCover raster for AOI...")
-
-            # Clip the ESA WorldCover VRT based on the AOI extent
-            clipped_esa_worldcover_2021 = clipRasterByExtent(
-                self.esa_worldcover_2021_vrt, extent, self.parameters["EsaWorldcoverAOI"], self.context, self.feedback
-            )
-
-            if not clipped_esa_worldcover_2021:
-                self.feedback.reportError("Failed to generate ESA WorldCover raster for AOI.")
-                raise QgsProcessingException("Failed to generate ESA WorldCover raster for AOI.")
-
-            self.outputs["clipped_esa_worldcover_2021"] = clipped_esa_worldcover_2021
-            self.feedback.pushInfo(f"ESA WorldCover raster saved at: {clipped_esa_worldcover_2021}")
-
-        else:
-            # If no raster is requested, handle it gracefully
-            self.feedback.pushInfo("Skipping ESA WorldCover raster generation as no output is requested.")
-            self.outputs["clipped_esa_worldcover_2021"] = None
+        feedback.pushInfo("Manning Roughness calculation completed.")
+        # Step 5: Return Results (Ensure ESA & Roughness are both included)
+        results["EsaWorldcoverAOI"] = esa_raster
+        return results
 
 
-
-        # Step 3: Select the correct lookup file based on ROUGHNESS_CLASS
+    def processManningRoughness(self, esa_raster, parameters, context, feedback):
+        # Step 5: Load Manning Roughness Lookup Table
         roughness_lookup = ["low_n.csv", "med_n.csv", "high_n.csv"]
-        selected_lookup = roughness_lookup[self.parameters["ROUGHNESS_CLASS"]]
-        lookup_file = os.path.join(self.lookup_folder, selected_lookup)
+        selected_lookup = roughness_lookup[parameters["ROUGHNESS_CLASS"]]
+        lookup_file = os.path.join(os.path.dirname(__file__), "lookups", selected_lookup)
 
-        #lookup_layer = QgsVectorLayer(lookup_file, "ManningRoughnessLookup", "ogr")
-        #if not lookup_layer.isValid():
-        #    raise QgsProcessingException("Failed to load Manning Roughness lookup table")
-
-        # Load lookup table as a QGIS vector layer using 'delimitedtext' if it's a CSV
-        lookup_uri = f"file://{lookup_file}?delimiter=,"
-        lookup_layer = QgsVectorLayer(lookup_uri, "ManningRoughnessLookup", "delimitedtext")
+        lookup_layer = QgsVectorLayer(f"file://{lookup_file}?delimiter=,", "ManningRoughnessLookup", "delimitedtext")
 
         if not lookup_layer.isValid():
             raise QgsProcessingException(f"Failed to load Manning Roughness lookup table: {lookup_file}")
 
+        feedback.pushInfo(f"Manning Roughness lookup table loaded from: {lookup_file}")
 
-        if not self.outputs.get("clipped_esa_worldcover_2021"):
-            raise QgsProcessingException("ESA WorldCover raster is missing. Ensure clipping was executed successfully.")
-        
-        alg_params = {
-                "DISCARD_NONMATCHING": False,
-                "FIELD": "raster_value",
-                "FIELDS_TO_COPY": ["n"],
-                "FIELD_2": "lc",
-                "INPUT": self.outputs["clipped_esa_worldcover_2021"],  # Use the correct reference
-                "INPUT_2": lookup_layer,
-                "METHOD": 1,
-                "PREFIX": "",
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-                }
+        # Step 6: Compute Manning Roughness
+        feedback.pushInfo(f"Passing ESA raster to calculator: {esa_raster}")
 
-        
-        # Step 4: Generate the raster math expression for Manning roughness
-        exprs = " + ".join([f"(A == {feature['lc']}) * {feature['n']}" for feature in lookup_layer.getFeatures()])
+        if not os.path.exists(esa_raster):
+            raise QgsProcessingException(f"ESA raster missing before passing to calculator: {esa_raster}")
 
-        # Apply raster calculation using the generated expression
-        input_dict = {"input_a": clipped_esa_worldcover_2021, "band_a": 1}
-        manning_roughness = perform_raster_math(
-                exprs, input_dict, self.context, self.feedback, no_data=-9999, out_data_type=5,
-                output=self.parameters["ManningRoughness"]
+        calculator = ManningRoughnessCalculator(
+                parameters, context, feedback,
+                esa_raster, lookup_layer,
+                parameters["ManningRoughness"],
+                parameters.get("ManningRoughnessVector", None)
                 )
 
-        
-        # Step 5: Polygonize (optional)
-        if self.parameters.get("ManningRoughnessVector"):
-            self.outputs["ManningRoughnessVector"] = gdalPolygonize(
-                manning_roughness, "roughness", self.parameters["ManningRoughnessVector"], self.context, self.feedback
-            )
-            apply_style(self.outputs["ManningRoughnessVector"], "manning_roughness_vector.qml", self.context)
-            self.results["ManningRoughnessVector"] = self.outputs["ManningRoughnessVector"]
+        results = calculator.run()
 
-        # Step 6: Apply style and return results
-        apply_style(manning_roughness, "manning_roughness_raster.qml", self.context)
-        self.results["ManningRoughness"] = manning_roughness
+# Need to add the ManningRoughnessVector processing. for now, it does not produce output.
+        # Ensure the vector output is present in results
+        if "ManningRoughnessVector" in results and results["ManningRoughnessVector"]:
+            feedback.pushInfo(f"Manning Roughness Vector created at: {results['ManningRoughnessVector']}")
 
-        return self.results
+            feedback.pushInfo("Manning Roughness computation completed.")
+            return results
+
+        # Ensure output exists
+        output_raster = parameters["ManningRoughness"]
+#        if isinstance(output_raster, QgsProcessingOutputLayerDefinition):
+#            output_raster = str(output_raster)  # Convert to string, even if it's an object
+#
+#            if not os.path.exists(output_raster):
+#                print(f"WARNING: Manning Roughness raster might not have been created: {output_raster}")
+#
+
+        feedback.pushInfo(f"Manning Roughness raster saved at: {output_raster}")
+        feedback.pushInfo("Manning Roughness Algorithm completed successfully.")
+
+        return results

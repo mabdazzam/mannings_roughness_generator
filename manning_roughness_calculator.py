@@ -30,121 +30,111 @@ import os
 import sys
 import processing
 
-from qgis.core import QgsProcessingException, QgsProcessingUtils
+from qgis.core import QgsProcessingException, QgsProcessingUtils, QgsVectorLayer
 from .utils import (
-    clipRasterByExtent,
-#   generate_manning_exprs,
-    perform_raster_math,
-    load_manning_lookup,
-    gdalPolygonize,
-    apply_style,
-)
+        clipRasterByExtent,
+        #   generate_manning_exprs,
+        perform_raster_math,
+        load_manning_lookup,
+        gdalPolygonize,
+        apply_style,
+        )
 
 class ManningRoughnessCalculator:
-    def __init__(self, parameters, context, feedback):
+    def __init__(self, parameters, context, feedback, esa_raster, lookup_table, output_raster, output_vector):
+        """
+        Initializes the Manning Roughness Calculator.
+
+        :param parameters: QGIS processing parameters
+        :param context: QGIS processing context
+        :param feedback: QGIS feedback object for logging
+        :param esa_raster: The preprocessed ESA raster to be used for roughness calculation
+        :param lookup_table: The lookup table containing Manning roughness values
+        :param output_raster: The destination path for the Manning Roughness raster
+        :param output_vector: The optional destination path for the vectorized roughness layer
+        """
         self.parameters = parameters
         self.context = context
         self.feedback = feedback
+        self.esa_raster = esa_raster  # 
+        self.lookup_table = lookup_table  
+        self.output_raster = output_raster 
+        self.output_vector = output_vector  
+
         self.outputs = {}
         self.results = {}
 
+
     def run(self):
-        """Main processing logic for Manning Roughness calculation"""
-        self.feedback.setCurrentStep(1)
-        if self.feedback.isCanceled():
-            return {}
+        """Performs the Manning Roughness calculation using ESA Land Cover and lookup table."""
+        self.feedback.pushInfo("Starting Manning Roughness calculation...")
 
-        # Step 1: Extract AOI extent
-        aoi_layer = QgsProcessingUtils.mapLayerFromString(self.parameters["aoi"], self.context)
-        if aoi_layer is None:
-            raise QgsProcessingException("Invalid Area of Interest (AOI) layer")
+        # Step 1: ensure ESA raster exists
+        if not os.path.exists(self.esa_raster):
+            raise QgsProcessingException(f"ESA raster is missing: {self.esa_raster}")
 
-        extent = aoi_layer.extent()
-        print(f"AOI extent: {extent}")
+        self.feedback.pushInfo(f"Using ESA raster: {self.esa_raster} for roughness computation.")
 
-        return {"OUTPUT": "Processing complete"}
+        # Step 2: load lookup table based on user selection
+        roughness_lookup = ["low_n.csv", "med_n.csv", "high_n.csv"]
+        selected_lookup = roughness_lookup[self.parameters["ROUGHNESS_CLASS"]]
+        lookup_file = os.path.join(os.path.dirname(__file__), "lookups", selected_lookup)
 
-        # Step 2: Clip Land Cover Raster
-#        land_cover_vrt = os.path.join(os.path.dirname(__file__), "land_cover.vrt")
-#        self.outputs["clipped_esa_worldcover_2021"] = clipRasterByExtent(
-#            land_cover_vrt, extent, processing.TEMPORARY_OUTPUT, self.context, self.feedback
-#        )
-#
-#        self.feedback.setCurrentStep(2)
-#        if self.feedback.isCanceled():
-#            return {}
+        self.feedback.pushInfo(f"Loading Manning Roughness lookup table from: {lookup_file}")
 
-        # Step 2: Clip Land Cover Raster 
-        
-        clipped_esa_worldcover_2021 = clipRasterByExtent(
-                os.path.join(os.path.dirname(__file__), "land_cover.vrt"),
-                extent,
-                self.parameters["ManningRoughness"],  # Save to a real output path
-                self.context,
-                self.feedback,
+        if not os.path.exists(lookup_file):
+            raise QgsProcessingException(f"Lookup table not found: {lookup_file}")
+
+        # Step 3: read lookup CSV dile
+        lookup_values = []
+        with open(lookup_file, "r") as file:
+            lines = file.readlines()
+            for line in lines[1:]:  # Skip header
+                parts = line.strip().split(",")
+                if len(parts) == 2:
+                    try:
+                        lc_value = int(parts[0])  
+                        n_value = float(parts[1])
+                        lookup_values.append((lc_value, n_value))
+                    except ValueError:
+                        self.feedback.pushWarning(f"Skipping invalid row in lookup file: {line.strip()}")
+
+                        if not lookup_values:
+                            raise QgsProcessingException(f"Lookup table {selected_lookup} is empty or malformed.")
+
+        self.feedback.pushInfo(f"Loaded {len(lookup_values)} land cover to roughness mappings.")
+
+        # Step 4: generate raster calculation expression
+        exprs = " + ".join([f"(A == {lc}) * {n}" for lc, n in lookup_values])
+        self.feedback.pushInfo(f"Generated raster math expression: {exprs}")
+
+        # Step 5:  perform raster calculation to assign manning roughness values
+        input_dict = {"input_a": self.esa_raster, "band_a": 1}
+        self.outputs["ManningRoughness"] = perform_raster_math(
+                exprs, input_dict, self.context, self.feedback, no_data=-9999, out_data_type=5,
+                output=self.output_raster
                 )
-        self.outputs["clipped_esa_worldcover_2021"] = clipped_esa_worldcover_2021
 
-        
-        # Ensure QGIS registers the raster properly before continuing
-        clipped_raster_layer = QgsProcessingUtils.mapLayerFromString(clipped_esa_worldcover_2021, self.context)
-        if clipped_raster_layer is None:
-            raise QgsProcessingException("QGIS failed to load clipped land cover raster.")
+        if not os.path.exists(self.outputs["ManningRoughness"]):
+            raise QgsProcessingException("Manning Roughness raster was not created!")
 
-        # Step 3: Generate Manning Roughness Raster
-#        manning_exprs = generate_manning_exprs("lookups/manning_lookup.csv")
-#        input_dict = {"input_a": self.outputs["clipped_esa_worldcover_2021"], "band_a": 1}
-#
-#        self.outputs["ManningRoughness"] = perform_raster_math(
-#            manning_exprs, input_dict, self.context, self.feedback, processing.TEMPORARY_OUTPUT
-        )
-
-        # Step 3: Load Lookup Table as Vector Layer
-
-        lookup_layer = QgsVectorLayer(os.path.join(os.path.dirname(__file__), "lookups/manning_lookup.csv"),
-                              "ManningRoughnessLookup", "ogr")
-        if not lookup_layer.isValid():
-            raise QgsProcessingException("Failed to load Manning Roughness lookup table")
+        self.feedback.pushInfo(f"Manning Roughness raster saved at: {self.outputs['ManningRoughness']}")
 
 
-        # Step 4: Perform Join (like Curve Number)
-
-        alg_params = {
-                "DISCARD_NONMATCHING": False,
-                "FIELD": "raster_value",  # Land cover field in raster
-                "FIELDS_TO_COPY": ["n"],  # Manning roughness coefficient
-                "FIELD_2": "lc",  # Land cover field in lookup
-                "INPUT": self.outputs["clipped_esa_worldcover_2021"],  # The clipped raster
-                "INPUT_2": lookup_layer,  # Lookup table
-                "METHOD": 1,
-                "PREFIX": "",
-                "OUTPUT": self.parameters["ManningRoughness"],
-                }
-
-        # Load Clipped Raster Layer into QGIS before joining
-        clipped_raster_layer = QgsProcessingUtils.mapLayerFromString(self.outputs["clipped_esa_worldcover_2021"], self.context)
-        if clipped_raster_layer is None:
-            raise QgsProcessingException("Clipped land cover raster layer could not be loaded in QGIS.")
-
-        # Join Lookup Tabl
-        self.outputs["ManningRoughness"] = processing.runAndLoadResults(
-                "native:joinattributestable", alg_params, context=self.context, feedback=self.feedback
-                )["OUTPUT"]
-
-        self.feedback.setCurrentStep(3)
-        if self.feedback.isCanceled():
-            return {}
-
-        # Step 4: Convert Roughness Raster to Vector (Optional)
-        if self.parameters.get("ManningRoughnessVector", None):
+        # Step 6: vectorize the raster if required
+        if self.output_vector:
+            # Use the exact raster produced in Step 5
             self.outputs["ManningRoughnessVector"] = gdalPolygonize(
-                self.outputs["ManningRoughness"], "roughness", self.parameters["ManningRoughnessVector"], self.context, self.feedback
-            )
-            apply_style(self.outputs["ManningRoughnessVector"], "manning_roughness_vector.qml", self.context)
-            self.results["ManningRoughnessVector"] = self.outputs["ManningRoughnessVector"]
+                    self.outputs["ManningRoughness"], 
+                    "n",  
+                    output=self.output_vector,
+                    context=self.context,
+                    feedback=self.feedback,
+                    )
 
-        # Step 5: Apply Raster Styling
-        apply_style(self.outputs["ManningRoughness"], "manning_roughness_raster.qml", self.context)
-        self.results["ManningRoughness"] = self.outputs["ManningRoughness"]
+            if not os.path.exists(self.outputs["ManningRoughnessVector"]):
+                raise QgsProcessingException("Manning Roughness vectorization failed!")
 
-        return self.results
+            self.feedback.pushInfo(f"Manning Roughness Vector saved at: {self.outputs['ManningRoughnessVector']}")
+
+        return {"ManningRoughness": self.outputs["ManningRoughness"]}
