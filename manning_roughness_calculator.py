@@ -120,6 +120,8 @@ class ManningRoughnessCalculator:
 
         self.feedback.pushInfo(f"Manning Roughness raster saved at: {self.outputs['ManningRoughness']}")
 
+        ## in the following step (VectorRoughness) gdal polygonize does not seem to work (even manually)
+        # review of vectorization methods and usage of the appropirate one is required. 
 
         # Step 6: vectorize the raster if required
         if self.output_vector:
