@@ -34,7 +34,6 @@ import processing
 from qgis.core import QgsProcessingException, QgsProcessingUtils, QgsVectorLayer
 from .utils import (
         clipRasterByExtent,
-        #   generate_manning_exprs,
         perform_raster_math,
         load_manning_lookup,
         gdalPolygonize,
