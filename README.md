@@ -54,20 +54,6 @@ Manning Roughness Vector (Optional, Polygon Shapefile)
 
 ESA Worldcover 2021 for the AOI.
 
-## Plugin Structure
-Manning_Roughness_Generator/
-├── __init__.py                 # Registers the plugin in QGIS
-├── metadata.txt                # Plugin metadata
-├── provider.py                 # Processing provider for QGIS
-├── manning_roughness_generator.py # Main plugin entry
-├── manning_roughness_algorithm.py # Processing algorithm
-├── manning_roughness_calculator.py # Main calculation logic
-├── utils.py                     # Utility functions
-├── esa_worldcover_2021.vrt       # Reference land cover dataset
-├── manning_roughness_raster.qml  # Style file for raster output
-├── manning_roughness_vector.qml  # Style file for vector output
-└── lookups/                      # Lookup tables for roughness coefficients
-
 
 ## Contact
 
