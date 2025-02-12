@@ -27,12 +27,14 @@ __date__ = "2025-02-08"
 __copyright__ = "(C) 2025 by Abdullah Azzam"
 
 import os
+import sys
+import inspect
 import processing
-import pandas as pd
 from qgis.core import (
     QgsProcessing,
     QgsProcessingException,
     QgsVectorLayer,
+    QgsRasterLayer,
     QgsProcessingParameterBoolean,
     QgsVectorFileWriter,
     QgsProcessingOutputLayerDefinition,
@@ -252,7 +254,7 @@ class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
         gdal_output = processing.run(
                 "gdal:cliprasterbyextent",
                 {
-                    "INPUT": os.path.join(os.path.dirname(__file__), "esa_worldcover_2021.vrt"),
+                    "INPUT": os.path.normpath(os.path.join(os.path.dirname(__file__), "esa_worldcover_2021.vrt")),
                     "PROJWIN": f"{extent_esa[0]},{extent_esa[2]},{extent_esa[1]},{extent_esa[3]} [EPSG:4326]",
                     "OUTPUT": esa_output,
                     },
@@ -280,9 +282,10 @@ class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
         # Step 5: Load Manning Roughness Lookup Table
         roughness_lookup = ["low_n.csv", "med_n.csv", "high_n.csv"]
         selected_lookup = roughness_lookup[parameters["ROUGHNESS_CLASS"]]
-        lookup_file = os.path.join(os.path.dirname(__file__), "lookups", selected_lookup)
+        lookup_file = os.path.normpath(os.path.join(os.path.dirname(__file__), "lookups", selected_lookup))
 
-        lookup_layer = QgsVectorLayer(f"file://{lookup_file}?delimiter=,", "ManningRoughnessLookup", "delimitedtext")
+        #lookup_layer = QgsVectorLayer(f"file://{lookup_file}?delimiter=,", "ManningRoughnessLookup", "delimitedtext")
+        lookup_layer = QgsVectorLayer(f"file:///{lookup_file.replace(os.sep, '/')}" + "?delimiter=,", "ManningRoughnessLookup", "delimitedtext")
 
         if not lookup_layer.isValid():
             raise QgsProcessingException(f"Failed to load Manning Roughness lookup table: {lookup_file}")

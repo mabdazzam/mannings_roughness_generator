@@ -26,13 +26,12 @@ __author__ = "Abdullah Azzam"
 __date__ = "2025-02-08"
 __copyright__ = "(C) 2025 by Abdullah Azzam"
 
+import os
+import sys
+import inspect
+import processing
 from qgis.core import QgsProcessingProvider, QgsApplication
 from qgis.PyQt.QtGui import QIcon
-
-import os
-import inspect
-import sys
-
 
 
 from .manning_roughness_algorithm import ManningRoughnessAlgorithm
@@ -56,7 +55,7 @@ class ManningRoughnessProvider(QgsProcessingProvider):
 
     def icon(self):
         """Return provider icon"""
-        return QIcon(os.path.join(os.path.dirname(__file__), "icon.png"))
+        return QIcon(os.path.normpath(os.path.join(os.path.dirname(__file__), "icon.png")))
 
     def initGui(self):
         """Initialize GUI elements if necessary"""

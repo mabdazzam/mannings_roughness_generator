@@ -27,11 +27,8 @@ __date__ = "2025-02-08"
 __copyright__ = "(C) 2025 by Abdullah Azzam"
 
 import os
-import pickle
-import time
-import xml.etree.ElementTree as ET
-import csv
-
+import sys
+import inspect
 import processing
 import requests
 from qgis.core import (
@@ -57,8 +54,10 @@ def fetchMessage(url, timeout=2) -> str:
     return response.text
 
 def saveToCache(message, cache_path):
-    with open(cache_path, "w") as file:
+    cache_path = os.path.normpath(cache_path)  #  normalized path for windows
+    with open(cache_path, "w", encoding="utf-8") as file:
         file.write(message)
+    os.fsync(file.fileno())  # ensure data is written before closing
 
 def isCacheValid(cache_path, duration):
     if os.path.exists(cache_path):

@@ -26,8 +26,10 @@ __author__ = "Abdullah Azzam"
 __date__ = "2025-02-08"
 __copyright__ = "(C) 2025 by Abdullah Azzam"
 
-# -*- coding: utf-8 -*-
-
+import os
+import sys
+import inspect
+import processing
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon

@@ -28,6 +28,7 @@ __copyright__ = "(C) 2025 by Abdullah Azzam"
 
 import os
 import sys
+import inspect
 import processing
 
 from qgis.core import QgsProcessingException, QgsProcessingUtils, QgsVectorLayer
@@ -70,6 +71,7 @@ class ManningRoughnessCalculator:
         self.feedback.pushInfo("Starting Manning Roughness calculation...")
 
         # Step 1: ensure ESA raster exists
+        self.esa_raster = os.path.normpath(self.esa_raster) ## normalized path for windows
         if not os.path.exists(self.esa_raster):
             raise QgsProcessingException(f"ESA raster is missing: {self.esa_raster}")
 
@@ -78,7 +80,8 @@ class ManningRoughnessCalculator:
         # Step 2: load lookup table based on user selection
         roughness_lookup = ["low_n.csv", "med_n.csv", "high_n.csv"]
         selected_lookup = roughness_lookup[self.parameters["ROUGHNESS_CLASS"]]
-        lookup_file = os.path.join(os.path.dirname(__file__), "lookups", selected_lookup)
+        #lookup_file = os.path.join(os.path.dirname(__file__), "lookups", selected_lookup)
+        lookup_file = os.path.normpath(os.path.join(os.path.dirname(__file__), "lookups", selected_lookup)) ## normalized path for windows
 
         self.feedback.pushInfo(f"Loading Manning Roughness lookup table from: {lookup_file}")
 
@@ -87,7 +90,8 @@ class ManningRoughnessCalculator:
 
         # Step 3: read lookup CSV dile
         lookup_values = []
-        with open(lookup_file, "r") as file:
+        #with open(lookup_file, "r") as file:
+        with open(lookup_file, "r", encoding="utf-8") as file:
             lines = file.readlines()
             for line in lines[1:]:  # Skip header
                 parts = line.strip().split(",")
