@@ -74,7 +74,7 @@ def loadMessageFromCache(cache_path):
 
 def apply_style(layer_path, style_path, context):
     """Apply QGIS layer style (.qml)"""
-    layer = QgsRasterLayer(layer_path, "Manning Roughness Layer", "gdal")  # Load raster explicitly
+    layer = QgsRasterLayer(layer_path, "Mannings Roughness Layer", "gdal")  # Load raster explicitly
     if layer.isValid() and style_path and os.path.exists(style_path):
         layer.loadNamedStyle(style_path)
         layer.triggerRepaint()
@@ -95,11 +95,11 @@ def clipRasterByExtent(input_raster, extent, output_path, context, feedback):
     return processing.run("gdal:cliprasterbyextent", clip_params, context=context, feedback=feedback)["OUTPUT"]
 
 
-def load_manning_lookup(lookup_table_path):
-    """Load Manning Roughness lookup table as a QGIS vector layer"""
-    lookup_layer = QgsVectorLayer(lookup_table_path, "ManningRoughnessLookup", "ogr")
+def load_mannings_lookup(lookup_table_path):
+    """Load Mannings Roughness lookup table as a QGIS vector layer"""
+    lookup_layer = QgsVectorLayer(lookup_table_path, "ManningsRoughnessLookup", "ogr")
     if not lookup_layer.isValid():
-        raise QgsProcessingException("Failed to load Manning Roughness lookup table")
+        raise QgsProcessingException("Failed to load Mannings Roughness lookup table")
     return lookup_layer
 
 def perform_raster_math(exprs, input_dict, context, feedback, no_data, out_data_type, output=QgsProcessing.TEMPORARY_OUTPUT):

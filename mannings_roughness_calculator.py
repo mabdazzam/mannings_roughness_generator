@@ -35,23 +35,22 @@ from qgis.core import QgsProcessingException, QgsProcessingUtils, QgsVectorLayer
 from .utils import (
         clipRasterByExtent,
         perform_raster_math,
-        load_manning_lookup,
+        load_mannings_lookup,
         gdalPolygonize,
         apply_style,
         )
 
-class ManningRoughnessCalculator:
-    def __init__(self, parameters, context, feedback, esa_raster, lookup_table, output_raster, output_vector):
+class ManningsRoughnessCalculator:
+    def __init__(self, parameters, context, feedback, esa_raster, lookup_table, output_raster):
         """
-        Initializes the Manning Roughness Calculator.
+        Initializes the Mannings Roughness Calculator.
 
         :param parameters: QGIS processing parameters
         :param context: QGIS processing context
         :param feedback: QGIS feedback object for logging
         :param esa_raster: The preprocessed ESA raster to be used for roughness calculation
-        :param lookup_table: The lookup table containing Manning roughness values
-        :param output_raster: The destination path for the Manning Roughness raster
-        :param output_vector: The optional destination path for the vectorized roughness layer
+        :param lookup_table: The lookup table containing Mannings roughness values
+        :param output_raster: The destination path for the Mannings Roughness raster
         """
         self.parameters = parameters
         self.context = context
@@ -59,15 +58,14 @@ class ManningRoughnessCalculator:
         self.esa_raster = esa_raster  # 
         self.lookup_table = lookup_table  
         self.output_raster = output_raster 
-        self.output_vector = output_vector  
 
         self.outputs = {}
         self.results = {}
 
 
     def run(self):
-        """Performs the Manning Roughness calculation using ESA Land Cover and lookup table."""
-        self.feedback.pushInfo("Starting Manning Roughness calculation...")
+        """Performs the Mannings Roughness calculation using ESA Land Cover and lookup table."""
+        self.feedback.pushInfo("Starting Mannings Roughness calculation...")
 
         # Step 1: ensure ESA raster exists
         self.esa_raster = os.path.normpath(self.esa_raster) ## normalized path for windows
@@ -82,7 +80,7 @@ class ManningRoughnessCalculator:
         #lookup_file = os.path.join(os.path.dirname(__file__), "lookups", selected_lookup)
         lookup_file = os.path.normpath(os.path.join(os.path.dirname(__file__), "lookups", selected_lookup)) ## normalized path for windows
 
-        self.feedback.pushInfo(f"Loading Manning Roughness lookup table from: {lookup_file}")
+        self.feedback.pushInfo(f"Loading Mannings Roughness lookup table from: {lookup_file}")
 
         if not os.path.exists(lookup_file):
             raise QgsProcessingException(f"Lookup table not found: {lookup_file}")
@@ -111,35 +109,16 @@ class ManningRoughnessCalculator:
         exprs = " + ".join([f"(A == {lc}) * {n}" for lc, n in lookup_values])
         self.feedback.pushInfo(f"Generated raster math expression: {exprs}")
 
-        # Step 5:  perform raster calculation to assign manning roughness values
+        # Step 5:  perform raster calculation to assign Mannings roughness values
         input_dict = {"input_a": self.esa_raster, "band_a": 1}
-        self.outputs["ManningRoughness"] = perform_raster_math(
+        self.outputs["ManningsRoughness"] = perform_raster_math(
                 exprs, input_dict, self.context, self.feedback, no_data=-9999, out_data_type=5,
                 output=self.output_raster
                 )
 
-        if not os.path.exists(self.outputs["ManningRoughness"]):
-            raise QgsProcessingException("Manning Roughness raster was not created!")
+        if not os.path.exists(self.outputs["ManningsRoughness"]):
+            raise QgsProcessingException("Mannings Roughness raster was not created!")
 
-        self.feedback.pushInfo(f"Manning Roughness raster saved at: {self.outputs['ManningRoughness']}")
+        self.feedback.pushInfo(f"Mannings Roughness raster saved at: {self.outputs['ManningsRoughness']}")
 
-        ## in the following step (VectorRoughness) gdal polygonize does not seem to work (even manually)
-        # review of vectorization methods and usage of the appropirate one is required. 
-
-        # Step 6: vectorize the raster if required
-        if self.output_vector:
-            # Use the exact raster produced in Step 5
-            self.outputs["ManningRoughnessVector"] = gdalPolygonize(
-                    self.outputs["ManningRoughness"], 
-                    "n",  
-                    output=self.output_vector,
-                    context=self.context,
-                    feedback=self.feedback,
-                    )
-
-            if not os.path.exists(self.outputs["ManningRoughnessVector"]):
-                raise QgsProcessingException("Manning Roughness vectorization failed!")
-
-            self.feedback.pushInfo(f"Manning Roughness Vector saved at: {self.outputs['ManningRoughnessVector']}")
-
-        return {"ManningRoughness": self.outputs["ManningRoughness"]}
+        return {"ManningsRoughness": self.outputs["ManningsRoughness"]}

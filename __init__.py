@@ -32,10 +32,10 @@ import inspect
 import processing
 
 from qgis.core import QgsApplication
-from .provider import ManningRoughnessProvider
+from .provider import ManningsRoughnessProvider
 
-class ManningRoughnessCalculator:
-    def __init__(self, parameters, context, feedback, esa_raster, lookup_table, output_raster, output_vector):
+class ManningsRoughnessCalculator:
+    def __init__(self, parameters, context, feedback, esa_raster, lookup_table, output_raster):
         self.parameters = parameters
         self.context = context
         self.feedback = feedback
@@ -44,7 +44,6 @@ class ManningRoughnessCalculator:
         self.esa_raster = os.path.normpath(esa_raster)
         self.lookup_table = os.path.normpath(lookup_table)
         self.output_raster = os.path.normpath(output_raster)
-        self.output_vector = os.path.normpath(output_vector) if output_vector else None
 
         self.outputs = {}
         self.results = {}
@@ -62,8 +61,8 @@ def saveToCache(message, cache_path):
         file.write(message)
 
 def classFactory(iface):
-    """Load the Manning Roughness Generator plugin"""
-    provider = ManningRoughnessProvider()
+    """Load the Mannings Roughness Generator plugin"""
+    provider = ManningsRoughnessProvider()
     QgsApplication.processingRegistry().addProvider(provider)
     return provider
 

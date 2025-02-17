@@ -59,26 +59,26 @@ from .utils import (
 )
 
 
-from .manning_roughness_calculator import ManningRoughnessCalculator
+from .mannings_roughness_calculator import ManningsRoughnessCalculator
 
-class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
-    """QGIS Processing Algorithm for Manning Roughness"""
+class ManningsRoughnessAlgorithm(QgsProcessingAlgorithm):
+    """QGIS Processing Algorithm for Mannings Roughness"""
 
     def name(self):
         return "manningroughness"
 
     def displayName(self):
-        return "Manning Roughness Generator"  
+        return "Mannings Roughness Generator"  
 
     def shortHelpString(self):
         return QCoreApplication.translate(
             "Processing",
-            "Generates Manning roughness raster from ESA WorldCover data, "
+            "Generates Mannings roughness raster from ESA WorldCover data, "
             "allowing for classification based on predefined roughness lookup tables."
         )
 
     def createInstance(self):
-        return ManningRoughnessAlgorithm()
+        return ManningsRoughnessAlgorithm()
 
     def initAlgorithm(self, config=None):
         self.roughness_classes = ["Low", "Medium", "High"]
@@ -116,24 +116,13 @@ class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # Add Manning Roughness Output
+        # Add Mannings Roughness Output
         self.addParameter(
             QgsProcessingParameterRasterDestination(
-                "ManningRoughness",
+                "ManningsRoughness",
                 "Manning's Roughness (Raster)",
                 optional=True,
                 createByDefault=True,
-                defaultValue=None,
-            )
-        )
-
-        # Add Manning Roughness Vector Output (Optional)
-        self.addParameter(
-            QgsProcessingParameterVectorDestination(
-                "ManningRoughnessVector",
-                "Manning's Roughness (Vector)",
-                optional=True,
-                createByDefault=False,
                 defaultValue=None,
             )
         )
@@ -201,56 +190,50 @@ class ManningRoughnessAlgorithm(QgsProcessingAlgorithm):
         esa_raster = gdal_output["OUTPUT"]
         feedback.pushInfo(f"ESA WorldCover raster processed at: {esa_raster}")
 
-        # Process Manning Roughness Calculation
-        feedback.pushInfo("Starting Manning Roughness calculation...")
-        results = self.processManningRoughness(esa_raster, parameters, context, feedback)
+        # Process Mannings Roughness Calculation
+        feedback.pushInfo("Starting Mannings Roughness calculation...")
+        results = self.processManningsRoughness(esa_raster, parameters, context, feedback)
 
-        feedback.pushInfo("Manning Roughness calculation completed.")
+        feedback.pushInfo("Mannings Roughness calculation completed.")
         #  Return Results (Ensure ESA & Roughness are both included)
         results["EsaWorldcoverAOI"] = esa_raster
         return results
 
 
-    def processManningRoughness(self, esa_raster, parameters, context, feedback):
-        #  Load Manning Roughness Lookup Table
+    def processManningsRoughness(self, esa_raster, parameters, context, feedback):
+        #  Load Mannings Roughness Lookup Table
         roughness_lookup = ["low_n.csv", "med_n.csv", "high_n.csv"]
         selected_lookup = roughness_lookup[parameters["ROUGHNESS_CLASS"]]
 
         lookup_file = os.path.normpath(os.path.join(os.path.dirname(__file__), "lookups", selected_lookup))
-        lookup_layer = QgsVectorLayer(f"file:///{lookup_file.replace(os.sep, '/')}" + "?delimiter=,", "ManningRoughnessLookup", "delimitedtext")
+        lookup_layer = QgsVectorLayer(f"file:///{lookup_file.replace(os.sep, '/')}" + "?delimiter=,", "ManningsRoughnessLookup", "delimitedtext")
 
         if not lookup_layer.isValid():
-            raise QgsProcessingException(f"Failed to load Manning Roughness lookup table: {lookup_file}")
+            raise QgsProcessingException(f"Failed to load Mannings Roughness lookup table: {lookup_file}")
 
-        feedback.pushInfo(f"Manning Roughness lookup table loaded from: {lookup_file}")
+        feedback.pushInfo(f"Mannings Roughness lookup table loaded from: {lookup_file}")
 
-        # Step 6: Compute Manning Roughness
+        # Step 6: Compute Mannings Roughness
         feedback.pushInfo(f"Passing ESA raster to calculator: {esa_raster}")
 
         if not os.path.exists(esa_raster):
             raise QgsProcessingException(f"ESA raster missing before passing to calculator: {esa_raster}")
 
-        calculator = ManningRoughnessCalculator(
+        calculator = ManningsRoughnessCalculator(
                 parameters, context, feedback,
                 esa_raster, lookup_layer,
-                parameters["ManningRoughness"],
-                parameters.get("ManningRoughnessVector", None)
+                parameters["ManningsRoughness"],
                 )
 
         results = calculator.run()
 
-# Need to add the ManningRoughnessVector processing. for now, it does not produce output.
-        # Ensure the vector output is present in results
-        if "ManningRoughnessVector" in results and results["ManningRoughnessVector"]:
-            feedback.pushInfo(f"Manning Roughness Vector created at: {results['ManningRoughnessVector']}")
-
-            feedback.pushInfo("Manning Roughness computation completed.")
-            return results
+        feedback.pushInfo("Mannings Roughness computation completed.")
+        return results
 
         # Ensure output exists
-        output_raster = parameters["ManningRoughness"]
+        output_raster = parameters["ManningsRoughness"]
 
-        feedback.pushInfo(f"Manning Roughness raster saved at: {output_raster}")
-        feedback.pushInfo("Manning Roughness Algorithm completed successfully.")
+        feedback.pushInfo(f"Mannings Roughness raster saved at: {output_raster}")
+        feedback.pushInfo("Mannings Roughness Algorithm completed successfully.")
 
         return results

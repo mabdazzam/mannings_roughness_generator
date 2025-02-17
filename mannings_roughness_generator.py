@@ -37,20 +37,20 @@ from qgis.core import QgsProcessingProvider
 
 from .manning_roughness_algorithm import ManningRoughnessAlgorithm
 
-class ManningRoughnessProvider(QgsProcessingProvider):
+class ManningsRoughnessProvider(QgsProcessingProvider):
     def loadAlgorithms(self):
         """Load the processing algorithms"""
-        self.addAlgorithm(ManningRoughnessAlgorithm())
+        self.addAlgorithm(ManningsRoughnessAlgorithm())
     
     def id(self):
-        return "manningroughness"
+        return "manningsroughness"
     
     def name(self):
-        return self.tr("Manning Roughness")
+        return self.tr("Mannings Roughness")
     
     def icon(self):
         return QIcon("icon.png")
 
 def classFactory(iface):
     """Load the provider into QGIS"""
-    return ManningRoughnessProvider()
+    return ManningsRoughnessProvider()
