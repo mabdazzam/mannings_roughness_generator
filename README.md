@@ -57,9 +57,7 @@ ESA Worldcover 2021 for the AOI.
 
 ## Contact
 
-Author: Abdullah Azzam
-Email: mabdazzam@outlook.com
-GitHub: Manning Roughness Plugin
+mabdazzam@outlook.com
 
 ## License
 
