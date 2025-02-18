@@ -1,16 +1,15 @@
 [general]
 name=Manning's Roughness Generator
-qgisMinimumVersion=3.10
-qgisMaximumVersion=3.99
-description=QGIS Plugin to generate Manning's roughness coefficients from land cover data.
+qgisMinimumVersion=3.18
+description=Plugin to generate high resolution 2D Manning's roughness coefficients raster from land cover data.
 version=1.0.0
 author=Abdullah Azzam
 email=mabdazzam@outlook.com
 
 about=This plugin processes land cover dataset to generate 2D Manning’s roughness coefficients for hydrologic and hydrauli modeling.
 
-tracker=https://github.com/mabdazzam/mannings_roughness_generator/issues
 repository=https://github.com/mabdazzam/mannings_roughness_generator
+tracker=https://github.com/mabdazzam/mannings_roughness_generator/issues
 homepage=https://github.com/mabdazzam/mannings_roughness_generator
 
 hasProcessingProvider=yes
