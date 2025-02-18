@@ -64,4 +64,4 @@ mabdazzam@outlook.com
 
 ## License
 
-This plugin is released under the GPL License.
+This plugin is released under the GNU General Public License 3.0.
