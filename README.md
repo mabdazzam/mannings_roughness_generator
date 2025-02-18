@@ -12,19 +12,23 @@ Manning Roughness Generator is a QGIS plugin designed to compute Manning's rough
 
 ## Installation
 
-1. Copy the plugin folder into the QGIS plugin directory:
+Download the zip and;
+
+1. Install the zipped plugin;
+
+        Open QGIS - Manage and Install Plugins - Install from ZIP - Browse and Select ZIP - OK.
+   
+2. Extract and copy the plugin folder into the QGIS plugin directory:
 
 For Linux;
 
-    ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/
+        ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/
 
 For Windows;
     
-    %APPDATA%\QGIS\QGIS3\profiles\default\python\plugins\
+        %APPDATA%\QGIS\QGIS3\profiles\default\python\plugins\
 
-2. Download the zip and;
 
-        Open QGIS - Manage and Install Plugins - Install from ZIP - Browse and Select ZIP - OK.
 
 Restart QGIS and activate the plugin from the Plugin Manager.
 
