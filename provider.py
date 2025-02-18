@@ -50,7 +50,7 @@ class ManningsRoughnessProvider(QgsProcessingProvider):
         return "manningsroughness"
 
     def name(self):
-        return self.tr("Manning's Roughness")
+        return self.tr("Manning's Roughness Generator")
 
     def icon(self):
         """Return provider icon"""
