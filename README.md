@@ -8,15 +8,23 @@ Manning Roughness Generator is a QGIS plugin designed to compute Manning's rough
 
 2. Computes Manning's roughness coefficients based on user-defined roughness classes
 
-3. Supports raster and vector output
-
-4. Generates the low, medium, and high roughness conditions. 
+3. Generates the roughness raster for low, medium, and high roughness conditions. 
 
 ## Installation
 
-Copy the plugin folder into the QGIS plugin directory:
+1. Copy the plugin folder into the QGIS plugin directory:
+
+For Linux;
 
     ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/
+
+For Windows;
+    
+    %APPDATA%\QGIS\QGIS3\profiles\default\python\plugins\
+
+2. Download the zip and;
+
+        Open QGIS - Manage and Install Plugins - Install from ZIP - Browse and Select ZIP - OK.
 
 Restart QGIS and activate the plugin from the Plugin Manager.
 
@@ -34,26 +42,21 @@ Configure the input parameters:
 
         Output Raster: Path to save the generated Manning roughness raster.
 
-        Output Vector (Optional): Path to save the polygonized version of the roughness raster.
-
     Click Run to generate the Manning roughness layer.
 
 ## Input Data
+
+Vector Area of Interest [Required by the user]
 
 ESA WorldCover 2021 (esa_worldcover_2021.vrt) [Provided]
 
 Lookup Tables (lookups/low_n.csv, lookups/med_n.csv, lookups/high_n.csv) [Provided]
 
-Vector Area of Interest [Required by the user]
-
 ## Output Data
 
 Manning Roughness Raster (GeoTIFF)
 
-Manning Roughness Vector (Optional, Polygon Shapefile)
-
 ESA Worldcover 2021 for the AOI.
-
 
 ## Contact
 
@@ -61,7 +64,4 @@ mabdazzam@outlook.com
 
 ## License
 
-This plugin is released under the MIT License.
-
-
-
+This plugin is released under the GPL License.
