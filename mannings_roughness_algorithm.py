@@ -47,21 +47,21 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtCore import QTimer
-from .mannings_roughness_calculator import ManningsRoughnessCalculator
+#from .mannings_roughness_calculator import ManningsRoughnessCalculator
 
 class ManningsRoughnessAlgorithm(QgsProcessingAlgorithm):
-    """QGIS Processing Algorithm for Mannings Roughness"""
+    """QGIS Processing Algorithm for Manning's Roughness"""
 
     def name(self):
-        return "manningroughness"
+        return "manningsroughness"
 
     def displayName(self):
-        return "Mannings Roughness Generator"
+        return "Manning's Roughness Generator"
 
     def shortHelpString(self):
         return QCoreApplication.translate(
             "Processing",
-            "Generates Mannings roughness raster from ESA WorldCover data, "
+            "Generates Manning's roughness raster from ESA WorldCover data, "
             "allowing for classification based on predefined roughness lookup tables."
         )
 
@@ -108,7 +108,7 @@ class ManningsRoughnessAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterDestination(
                 "ManningsRoughness",
-                "Manning's Roughness (Raster)",
+                "Manning's Roughness",
                 optional=True,
                 createByDefault=True,
                 defaultValue=None,
@@ -155,8 +155,18 @@ class ManningsRoughnessAlgorithm(QgsProcessingAlgorithm):
                 )
         feedback.pushInfo(f"buffered esa extent: {extent_esa}")
 
-        # clip esa worldcover
-        esa_output = parameters.get("EsaWorldcoverAOI", QgsProcessing.TEMPORARY_OUTPUT)
+        # clip esa worldcover and rename temp layer
+        #esa_output = parameters.get("EsaWorldcoverAOI", QgsProcessing.TEMPORARY_OUTPUT)
+        if parameters.get("EsaWorldcoverAOI", None):
+            try:
+                parameters["EsaWorldcoverAOI"].destinationName = "ESA WorldCover 2021"
+            except AttributeError:
+                pass
+            esa_output = parameters["EsaWorldcoverAOI"]
+        else:
+            esa_output = QgsProcessing.TEMPORARY_OUTPUT
+
+
         gdal_output = processing.run(
                 "gdal:cliprasterbyextent",
                 {
@@ -175,13 +185,13 @@ class ManningsRoughnessAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"esa worldcover raster processed at: {esa_raster}")
 
 
-        feedback.pushInfo("starting mannings roughness calculation...")
+        feedback.pushInfo("starting Manning's roughness calculation...")
 
         roughness_lookup = ["low_n.csv", "med_n.csv", "high_n.csv"]
         selected_lookup = roughness_lookup[parameters["ROUGHNESS_CLASS"]]
         lookup_file = os.path.normpath(os.path.join(os.path.dirname(__file__), "lookups", selected_lookup))
 
-        feedback.pushInfo(f"loading mannings roughness lookup table from: {lookup_file}")
+        feedback.pushInfo(f"loading Manning's roughness lookup table from: {lookup_file}")
 
         if not os.path.exists(lookup_file):
             raise QgsProcessingException(f"lookup table not found: {lookup_file}")
@@ -208,7 +218,17 @@ class ManningsRoughnessAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"generated raster math expression: {exprs}")
 
         input_dict = {"input_a": esa_raster, "band_a": 1}
-        roughness_output = parameters.get("ManningsRoughness", QgsProcessing.TEMPORARY_OUTPUT)
+
+        # rename temp roughness output
+        #roughness_output = parameters.get("ManningsRoughness", QgsProcessing.TEMPORARY_OUTPUT)
+        if parameters.get("ManningsRoughness", None):
+            try:
+                parameters["ManningsRoughness"].destinationName = "Manning's n"
+            except AttributeError:
+                pass
+            roughness_output = parameters["ManningsRoughness"]
+        else:
+            roughness_output = QgsProcessing.TEMPORARY_OUTPUT
 
         gdal_result = processing.run(
                 "gdal:rastercalculator",
@@ -225,10 +245,10 @@ class ManningsRoughnessAlgorithm(QgsProcessingAlgorithm):
                 )
 
         if "OUTPUT" not in gdal_result or not os.path.exists(gdal_result["OUTPUT"]):
-            raise QgsProcessingException("mannings roughness raster was not created!")
+            raise QgsProcessingException("manning's roughness raster was not created!")
 
         mannings_raster = gdal_result["OUTPUT"]
-        feedback.pushInfo(f"mannings roughness raster saved at: {mannings_raster}")
+        feedback.pushInfo(f"Manning's roughness raster saved at: {mannings_raster}")
         feedback.pushInfo("applying styling...")
 
         esa_style_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "esa_worldcover_2021.qml"))

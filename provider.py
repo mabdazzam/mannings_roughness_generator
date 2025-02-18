@@ -47,10 +47,10 @@ class ManningsRoughnessProvider(QgsProcessingProvider):
         self.addAlgorithm(ManningsRoughnessAlgorithm())
 
     def id(self):
-        return "manningroughness"
+        return "manningsroughness"
 
     def name(self):
-        return self.tr("Mannings Roughness")
+        return self.tr("Manning's Roughness")
 
     def icon(self):
         """Return provider icon"""

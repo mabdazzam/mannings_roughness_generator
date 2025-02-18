@@ -61,7 +61,7 @@ def saveToCache(message, cache_path):
         file.write(message)
 
 def classFactory(iface):
-    """Load the Mannings Roughness Generator plugin"""
+    """Load the Manning's Roughness Generator plugin"""
     provider = ManningsRoughnessProvider()
     QgsApplication.processingRegistry().addProvider(provider)
     return provider

@@ -35,7 +35,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsProcessingProvider
 
-from .manning_roughness_algorithm import ManningRoughnessAlgorithm
+from .mannings_roughness_algorithm import ManningsRoughnessAlgorithm
 
 class ManningsRoughnessProvider(QgsProcessingProvider):
     def loadAlgorithms(self):
@@ -46,7 +46,7 @@ class ManningsRoughnessProvider(QgsProcessingProvider):
         return "manningsroughness"
     
     def name(self):
-        return self.tr("Mannings Roughness")
+        return self.tr("Manning's Roughness")
     
     def icon(self):
         return QIcon("icon.png")

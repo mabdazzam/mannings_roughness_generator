@@ -96,10 +96,10 @@ def clipRasterByExtent(input_raster, extent, output_path, context, feedback):
 
 
 def load_mannings_lookup(lookup_table_path):
-    """Load Mannings Roughness lookup table as a QGIS vector layer"""
+    """Load Manning's Roughness lookup table as a QGIS vector layer"""
     lookup_layer = QgsVectorLayer(lookup_table_path, "ManningsRoughnessLookup", "ogr")
     if not lookup_layer.isValid():
-        raise QgsProcessingException("Failed to load Mannings Roughness lookup table")
+        raise QgsProcessingException("Failed to load Manning's Roughness lookup table")
     return lookup_layer
 
 def perform_raster_math(exprs, input_dict, context, feedback, no_data, out_data_type, output=QgsProcessing.TEMPORARY_OUTPUT):
