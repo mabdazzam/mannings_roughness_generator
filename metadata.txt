@@ -6,7 +6,7 @@ version=1.0.0
 author=Abdullah Azzam
 email=mabdazzam@outlook.com
 
-about=This plugin processes land cover dataset to generate 2D Manning’s roughness coefficients for hydrologic and hydrauli modeling.
+about=This plugin processes land cover dataset to generate 2D Manning’s roughness coefficients for hydrologic and hydraulic modeling.
 
 repository=https://github.com/mabdazzam/mannings_roughness_generator
 tracker=https://github.com/mabdazzam/mannings_roughness_generator/issues
