@@ -2,7 +2,7 @@
 name=Manning's Roughness Generator
 qgisMinimumVersion=3.18
 description=Plugin to generate high resolution 2D Manning's roughness coefficients raster from land cover data.
-version=1.0.0
+version=1.1.0
 author=Abdullah Azzam
 email=mabdazzam@outlook.com
 
@@ -14,13 +14,13 @@ homepage=https://github.com/mabdazzam/mannings_roughness_generator
 
 hasProcessingProvider=yes
 
-tags=Manning's n, Roughness, ESA, WorldCover, Hydrology, Hydraulics, HEC-RAS, flood inundation mapping
+tags=Manning's n, Roughness, ESA, WorldCover, Hydrology, Hydraulics, HEC-RAS, Flood Inundation Mapping
 
 category=Analysis, Raster
 
 icon=icon.png
 
-experimental=True
+experimental=False
 
 deprecated=False
 
