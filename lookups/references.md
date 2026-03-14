@@ -1,7 +1,4 @@
-# ESA Manning's n lookup table matched to existing lookup values
-
-These values match the existing lookup files exactly.
-References are official-source rows, ranges, or official proxy methods used to justify the selected values.
+# ESA Manning's n lookup table
 
 | ESA code | ESA class | low | medium | high | reference |
 |---|---|---:|---:|---:|---|
